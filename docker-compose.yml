@@ -10,9 +10,27 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrations:
+    image: node:18-alpine
+    command: sh -c "sleep 5 && npm install && npx knex migrate:latest"
+    volumes:
+      - .:/usr/src/app
+    working_dir: /usr/src/app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=db
 
 volumes:
   db_data:
 
+# npm run db:reset
 # docker-compose up -d
 # docker-compose down --volumes --remove-orphans
