@@ -1,7 +1,21 @@
 const express = require('express');
-const app = express();
+const cors = require('cors');
+const helmet = require('helmet');
 const db = require('./config/db');
+const api = require('./api');
 
+const app = express();
+
+// Güvenlik ve veri işleme ara yazılımları
+app.use(express.json()); // Gelen JSON verilerini okumak için
+app.use(express.urlencoded({ extended: true })); // URL kodlanmış verileri okumak için
+app.use(cors()); // CORS politikalarını etkinleştirir
+app.use(helmet()); // Temel güvenlik başlıklarını ayarlar
+
+// Ana API rotalarını bağla
+app.use('/api', api);
+
+// Basit bir ana sayfa rotası
 app.get('/', (req, res) => {
   res.send('API is running!');
 });
