@@ -20,6 +20,14 @@ export interface IJwtUserPayload {
   roles: string[];
 }
 
+// Yeni eklenen USER tipi
+export interface IUser {
+  id: string;
+  username: string;
+  email: string;
+  password_hash: string;
+}
+
 // Genel veritabanı tipi
 export interface IRecipe {
   id: string;
