@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import knex from '../../config/db';
 import {
@@ -12,7 +11,7 @@ import {
 
 export const getAllRecipes = async (req: Request, res: Response) => {
   try {
-    const recipes = await (knex as Knex)('recipes').select<IRecipe[]>('*');
+    const recipes = await knex('recipes').select<IRecipe[]>('*');
     res.status(200).json({
       message: 'Tarifler başarıyla getirildi.',
       recipes,
@@ -28,7 +27,7 @@ export const getAllRecipes = async (req: Request, res: Response) => {
 export const getRecipeById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const recipe = await (knex as Knex)('recipes').where('id', id).first<IRecipe>();
+    const recipe = await knex('recipes').where('id', id).first<IRecipe>();
 
     if (!recipe) {
       return res.status(404).json({ message: 'Tarif bulunamadı.' });
@@ -68,7 +67,7 @@ export const createRecipe = async (req: AuthenticatedRequest, res: Response) => 
       updated_at: new Date(),
     };
 
-    await (knex as Knex)<IRecipe>('recipes').insert(newRecipe);
+    await knex<IRecipe>('recipes').insert(newRecipe);
 
     res.status(201).json({ message: 'Tarif başarıyla oluşturuldu.', recipeId: newRecipe.id });
   } catch (error) {
@@ -83,7 +82,7 @@ export const updateRecipe = async (req: AuthenticatedRequest, res: Response) => 
     const { title, description, image_url, prep_time, cook_time, servings } = req.body;
     const userId = req.user.id;
 
-    const recipe = await (knex as Knex)('recipes').where('id', id).first<IRecipe>();
+    const recipe = await knex('recipes').where('id', id).first<IRecipe>();
 
     if (!recipe) {
       return res.status(404).json({ message: 'Tarif bulunamadı.' });
@@ -103,7 +102,7 @@ export const updateRecipe = async (req: AuthenticatedRequest, res: Response) => 
       updated_at: new Date(),
     };
 
-    await (knex as Knex)('recipes').where('id', id).update(updatedFields);
+    await knex('recipes').where('id', id).update(updatedFields);
 
     res.status(200).json({ message: 'Tarif başarıyla güncellendi.' });
   } catch (error) {
@@ -117,7 +116,7 @@ export const deleteRecipe = async (req: AuthenticatedRequest, res: Response) => 
     const { id } = req.params;
     const userId = req.user.id;
 
-    const recipe = await (knex as Knex)('recipes').where('id', id).first<IRecipe>();
+    const recipe = await knex('recipes').where('id', id).first<IRecipe>();
 
     if (!recipe) {
       return res.status(404).json({ message: 'Tarif bulunamadı.' });
@@ -127,12 +126,12 @@ export const deleteRecipe = async (req: AuthenticatedRequest, res: Response) => 
       return res.status(403).json({ message: 'Bu tarifi silme yetkiniz yok.' });
     }
 
-    await (knex as Knex)('ingredients').where('recipe_id', id).del();
-    await (knex as Knex)('instructions').where('recipe_id', id).del();
-    await (knex as Knex)('comments').where('recipe_id', id).del();
-    await (knex as Knex)('favorites').where('recipe_id', id).del();
+    await knex('ingredients').where('recipe_id', id).del();
+    await knex('instructions').where('recipe_id', id).del();
+    await knex('comments').where('recipe_id', id).del();
+    await knex('favorites').where('recipe_id', id).del();
 
-    await (knex as Knex)('recipes').where('id', id).del();
+    await knex('recipes').where('id', id).del();
 
     res.status(200).json({ message: 'Tarif başarıyla silindi.' });
   } catch (error) {
@@ -145,7 +144,7 @@ export const getRecipeDetails = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const rawData = await (knex as Knex)<IRecipeDetails[]>('recipes')
+    const rawData = await knex<IRecipeDetails[]>('recipes')
       .leftJoin('ingredients', 'recipes.id', 'ingredients.recipe_id')
       .leftJoin('instructions', 'recipes.id', 'instructions.recipe_id')
       .leftJoin('users', 'recipes.user_id', 'users.id')
