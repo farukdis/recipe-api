@@ -9,4 +9,7 @@ router.post('/:recipe_id', authenticateToken, favoritesController.addFavorite);
 // Favorilerden tarif kaldırma
 router.delete('/:recipe_id', authenticateToken, favoritesController.removeFavorite);
 
+// Kullanıcının tüm favorilerini getirme
+router.get('/', authenticateToken, favoritesController.getFavorites); // Yeni eklenen satır
+
 module.exports = router;
