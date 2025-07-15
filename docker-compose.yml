@@ -31,6 +31,6 @@ services:
 volumes:
   db_data:
 
-# npm run db:reset
+
 # docker-compose up -d
 # docker-compose down --volumes --remove-orphans
