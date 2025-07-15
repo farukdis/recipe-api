@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const db = require('./config/db');
+const db = require('./config/db'); // db artık Knex instance'ı
 const api = require('./api');
 
 const app = express();
@@ -20,14 +20,14 @@ app.get('/', (req, res) => {
   res.send('API is running!');
 });
 
-// Veritabanı bağlantısını test etme
-db.query('SELECT NOW()', (err, result) => {
-  if (err) {
-    console.error('Database connection failed:', err.stack);
-  } else {
+// Veritabanı bağlantısını test etme (Knex ile)
+db.raw('SELECT NOW()')
+  .then(result => {
     console.log('Database connection successful at:', result.rows[0].now);
-  }
-});
+  })
+  .catch(err => {
+    console.error('Database connection failed:', err.stack);
+  });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
