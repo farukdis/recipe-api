@@ -6,6 +6,7 @@ const router = express.Router();
 
 // Tarif rotalarını burada tanımlayacağız
 router.get('/', recipeController.getAllRecipes);
+router.get('/:id/details', recipeController.getRecipeDetails); // Yeni eklenen rota
 router.get('/:id', recipeController.getRecipeById);
 
 router.post('/', authenticateToken, recipeController.createRecipe);
