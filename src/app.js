@@ -12,6 +12,7 @@ app.use(express.urlencoded({ extended: true })); // URL kodlanmış verileri oku
 app.use(cors()); // CORS politikalarını etkinleştirir
 app.use(helmet()); // Temel güvenlik başlıklarını ayarlar
 
+
 // Ana API rotalarını bağla
 app.use('/api', api);
 
@@ -29,6 +30,7 @@ db.raw('SELECT NOW()')
     console.error('Database connection failed:', err.stack);
   });
 
+  
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
