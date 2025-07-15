@@ -1,52 +1,61 @@
-const knex = require("../../config/db");
-const { v4: uuidv4 } = require('uuid');
+import { Request, Response } from 'express';
+import { Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
+import knex from '../../config/db';
+import {
+  AuthenticatedRequest,
+  IRecipe,
+  IRecipeDetails,
+  IIngredient,
+  IInstruction,
+} from '../../types';
 
-exports.getAllRecipes = async (req, res) => {
+export const getAllRecipes = async (req: Request, res: Response) => {
   try {
-    const recipes = await knex("recipes").select("*");
+    const recipes = await (knex as Knex)('recipes').select<IRecipe[]>('*');
     res.status(200).json({
-      message: "Tarifler başarıyla getirildi.",
+      message: 'Tarifler başarıyla getirildi.',
       recipes,
     });
   } catch (error) {
-    console.error("Tüm tarifleri getirme hatası:", error);
+    console.error('Tüm tarifleri getirme hatası:', error);
     res
       .status(500)
-      .json({ message: "Tüm tarifleri getirme sırasında bir hata oluştu." });
+      .json({ message: 'Tüm tarifleri getirme sırasında bir hata oluştu.' });
   }
 };
 
-exports.getRecipeById = async (req, res) => {
+export const getRecipeById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const recipe = await knex("recipes").where({ id: id }).first();
+    const recipe = await (knex as Knex)('recipes').where('id', id).first<IRecipe>();
 
     if (!recipe) {
-      return res.status(404).json({ message: "Tarif bulunamadı." });
+      return res.status(404).json({ message: 'Tarif bulunamadı.' });
     }
 
     res.status(200).json({
-      message: "Tarif başarıyla getirildi.",
+      message: 'Tarif başarıyla getirildi.',
       recipe,
     });
   } catch (error) {
-    console.error("Tarif getirme hatası", error);
+    console.error('Tarif getirme hatası', error);
     res.status(500).json({
-      message: "Tarifi getirme sırasında bir hata oluştu.",
+      message: 'Tarifi getirme sırasında bir hata oluştu.',
     });
   }
 };
 
-exports.createRecipe = async (req, res) => {
+export const createRecipe = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { title, description, image_url, prep_time, cook_time, servings } = req.body;
     const userId = req.user.id;
 
     if (!title || !userId) {
-      return res.status(400).json({ message: "Başlık ve kullanıcı bilgisi gereklidir." });
+      return res.status(400).json({ message: 'Başlık ve kullanıcı bilgisi gereklidir.' });
     }
 
-    const newRecipe = {
+    const newRecipe: IRecipe = {
       id: uuidv4(),
       title,
       description,
@@ -55,9 +64,11 @@ exports.createRecipe = async (req, res) => {
       cook_time,
       servings,
       user_id: userId,
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    await knex('recipes').insert(newRecipe);
+    await (knex as Knex)<IRecipe>('recipes').insert(newRecipe);
 
     res.status(201).json({ message: 'Tarif başarıyla oluşturuldu.', recipeId: newRecipe.id });
   } catch (error) {
@@ -66,14 +77,13 @@ exports.createRecipe = async (req, res) => {
   }
 };
 
-exports.updateRecipe = async (req, res) => {
+export const updateRecipe = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { title, description, image_url, prep_time, cook_time, servings } = req.body;
     const userId = req.user.id;
 
-    // 1. Tarife ulaş ve kullanıcı kimliğini doğrula
-    const recipe = await knex('recipes').where({ id }).first();
+    const recipe = await (knex as Knex)('recipes').where('id', id).first<IRecipe>();
 
     if (!recipe) {
       return res.status(404).json({ message: 'Tarif bulunamadı.' });
@@ -83,35 +93,31 @@ exports.updateRecipe = async (req, res) => {
       return res.status(403).json({ message: 'Bu tarifi güncelleme yetkiniz yok.' });
     }
 
-    // 2. Güncellenecek verileri hazırla
-    const updatedFields = {
+    const updatedFields: Partial<IRecipe> = {
       title,
       description,
       image_url,
       prep_time,
       cook_time,
       servings,
-      updated_at: knex.fn.now() // Güncelleme zamanını otomatik ayarla
+      updated_at: new Date(),
     };
 
-    // 3. Veritabanını güncelle
-    await knex('recipes').where({ id }).update(updatedFields);
+    await (knex as Knex)('recipes').where('id', id).update(updatedFields);
 
     res.status(200).json({ message: 'Tarif başarıyla güncellendi.' });
-
   } catch (error) {
     console.error('Tarif güncelleme hatası:', error);
     res.status(500).json({ message: 'Tarif güncelleme sırasında bir hata oluştu.' });
   }
 };
 
-exports.deleteRecipe = async (req, res) => {
+export const deleteRecipe = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
 
-    // 1. Tarife ulaş ve kullanıcı kimliğini doğrula
-    const recipe = await knex('recipes').where({ id }).first();
+    const recipe = await (knex as Knex)('recipes').where('id', id).first<IRecipe>();
 
     if (!recipe) {
       return res.status(404).json({ message: 'Tarif bulunamadı.' });
@@ -121,29 +127,25 @@ exports.deleteRecipe = async (req, res) => {
       return res.status(403).json({ message: 'Bu tarifi silme yetkiniz yok.' });
     }
 
-    // 2. Tarife ait tüm ilişkili verileri sil
-    await knex('ingredients').where({ recipe_id: id }).del();
-    await knex('instructions').where({ recipe_id: id }).del();
-    await knex('comments').where({ recipe_id: id }).del();
-    await knex('favorites').where({ recipe_id: id }).del();
+    await (knex as Knex)('ingredients').where('recipe_id', id).del();
+    await (knex as Knex)('instructions').where('recipe_id', id).del();
+    await (knex as Knex)('comments').where('recipe_id', id).del();
+    await (knex as Knex)('favorites').where('recipe_id', id).del();
 
-    // 3. Tarife ait veritabanı kaydını sil
-    await knex('recipes').where({ id }).del();
+    await (knex as Knex)('recipes').where('id', id).del();
 
     res.status(200).json({ message: 'Tarif başarıyla silindi.' });
-
   } catch (error) {
     console.error('Tarif silme hatası:', error);
     res.status(500).json({ message: 'Tarif silme sırasında bir hata oluştu.' });
   }
 };
 
-exports.getRecipeDetails = async (req, res) => {
+export const getRecipeDetails = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Tüm veriyi JOIN ile çek
-    const rawData = await knex('recipes')
+    const rawData = await (knex as Knex)<IRecipeDetails[]>('recipes')
       .leftJoin('ingredients', 'recipes.id', 'ingredients.recipe_id')
       .leftJoin('instructions', 'recipes.id', 'instructions.recipe_id')
       .leftJoin('users', 'recipes.user_id', 'users.id')
@@ -164,16 +166,14 @@ exports.getRecipeDetails = async (req, res) => {
         'ingredients.quantity',
         'instructions.id as instruction_id',
         'instructions.step_number',
-        'instructions.step_text as instruction_description' 
+        'instructions.step_text as instruction_description'
       )
       .orderBy('instructions.step_number', 'asc');
 
-    // Tarif bulunamadıysa 404 döndür
     if (!rawData || rawData.length === 0) {
       return res.status(404).json({ message: 'Tarif bulunamadı.' });
     }
 
-    // Gelen veriyi okunabilir bir JSON yapısına dönüştür
     const recipe = {
       id: rawData[0].recipe_id,
       title: rawData[0].title,
@@ -185,29 +185,31 @@ exports.getRecipeDetails = async (req, res) => {
       created_at: rawData[0].created_at,
       updated_at: rawData[0].updated_at,
       author: {
-        username: rawData[0].username
+        username: rawData[0].username,
       },
-      ingredients: [],
-      instructions: []
+      ingredients: [] as IIngredient[],
+      instructions: [] as IInstruction[],
     };
 
     const ingredientIds = new Set();
     const instructionIds = new Set();
 
-    rawData.forEach(row => {
+    rawData.forEach((row) => {
       if (row.ingredient_id && !ingredientIds.has(row.ingredient_id)) {
         recipe.ingredients.push({
           id: row.ingredient_id,
-          name: row.ingredient_name,
-          quantity: row.quantity
+          name: row.ingredient_name || '',
+          quantity: row.quantity || '',
+          recipe_id: row.recipe_id,
         });
         ingredientIds.add(row.ingredient_id);
       }
       if (row.instruction_id && !instructionIds.has(row.instruction_id)) {
         recipe.instructions.push({
           id: row.instruction_id,
-          step_number: row.step_number,
-          description: row.instruction_description
+          step_number: row.step_number || 0,
+          step_text: row.instruction_description || '',
+          recipe_id: row.recipe_id,
         });
         instructionIds.add(row.instruction_id);
       }
@@ -215,9 +217,8 @@ exports.getRecipeDetails = async (req, res) => {
 
     res.status(200).json({
       message: 'Tarif detayları başarıyla getirildi.',
-      recipe
+      recipe,
     });
-
   } catch (error) {
     console.error('Tarif detaylarını getirme hatası:', error);
     res.status(500).json({ message: 'Tarif detaylarını getirme sırasında bir hata oluştu.' });

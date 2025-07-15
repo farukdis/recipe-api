@@ -1,39 +1,54 @@
-const knex = require("../../config/db");
+import { Request, Response } from 'express';
+import { Knex } from 'knex';
+import knex from '../../config/db';
+import { AuthenticatedRequest, IRecipe } from '../../types';
 
-exports.addFavorite = async (req, res) => {
+// Favori verisi için bir arayüz tanımlıyoruz
+interface IFavorite {
+  user_id: number;
+  recipe_id: string;
+  created_at: Date;
+}
+
+// Favori ve tarif verilerinin birleşimi için bir arayüz
+interface IFavoriteRecipe extends IRecipe {
+  author_username: string;
+}
+
+export const addFavorite = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { recipe_id } = req.params;
     const userId = req.user.id;
 
-    const favoriteExists = await knex('favorites')
+    // Hatalı kısım düzeltildi. where metodu objeyi kabul eder, tip belirtme ilk olarak `first` metodunda yapılmalı.
+    const favoriteExists = await (knex as Knex)('favorites')
       .where({ user_id: userId, recipe_id })
-      .first();
+      .first<IFavorite>(); // <-- Hata burada düzeltildi.
 
     if (favoriteExists) {
       return res.status(409).json({ message: "Bu tarif zaten favorilerinizde." });
     }
 
-    const newFavorite = {
+    const newFavorite: IFavorite = {
       user_id: userId,
-      recipe_id: recipe_id,
-      created_at: knex.fn.now()
+      recipe_id,
+      created_at: new Date()
     };
 
-    await knex('favorites').insert(newFavorite);
+    await (knex as Knex)('favorites').insert(newFavorite);
     res.status(201).json({ message: "Tarif favorilere başarıyla eklendi." });
-
   } catch (error) {
     console.error("Favori ekleme hatası:", error);
     res.status(500).json({ message: "Favori ekleme sırasında bir hata oluştu." });
   }
 };
 
-exports.removeFavorite = async (req, res) => {
+export const removeFavorite = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { recipe_id } = req.params;
     const userId = req.user.id;
 
-    const favoriteCount = await knex('favorites')
+    const favoriteCount = await (knex as Knex)('favorites')
       .where({ user_id: userId, recipe_id })
       .del();
 
@@ -42,26 +57,25 @@ exports.removeFavorite = async (req, res) => {
     }
 
     res.status(200).json({ message: "Tarif favorilerden başarıyla kaldırıldı." });
-
   } catch (error) {
     console.error("Favori kaldırma hatası:", error);
     res.status(500).json({ message: "Favori kaldırma sırasında bir hata oluştu." });
   }
 };
 
-exports.getFavorites = async (req, res) => {
+export const getFavorites = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user.id;
 
-    const favorites = await knex('favorites')
+    const favorites = await (knex as Knex)('favorites')
       .leftJoin('recipes', 'favorites.recipe_id', 'recipes.id')
       .leftJoin('users', 'recipes.user_id', 'users.id')
       .where('favorites.user_id', userId)
       .select('recipes.*', 'users.username as author_username')
-      .orderBy('favorites.created_at', 'desc');
+      .orderBy('favorites.created_at', 'desc')
+      .distinct('recipes.id') as IFavoriteRecipe[];
 
     res.status(200).json({ favorites });
-
   } catch (error) {
     console.error("Favorileri getirme hatası:", error);
     res.status(500).json({ message: "Favorileri getirme sırasında bir hata oluştu." });
