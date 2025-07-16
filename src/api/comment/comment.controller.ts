@@ -30,10 +30,6 @@ export const createComment = async (req: AuthenticatedRequest, res: Response) =>
     const { recipe_id } = req.params;
     const userId = req.user.id;
 
-    if (!comment_text || !recipe_id) {
-      return res.status(400).json({ message: 'Yorum metni ve tarif kimliği gereklidir.' });
-    }
-
     const newComment: IComment = {
       id: uuidv4(),
       comment_text,
@@ -57,10 +53,6 @@ export const updateComment = async (req: AuthenticatedRequest, res: Response) =>
     const { id } = req.params;
     const { comment_text } = req.body;
     const userId = req.user.id;
-
-    if (!comment_text) {
-      return res.status(400).json({ message: 'Yorum metni gereklidir.' });
-    }
 
     const comment = await knex('comments').where('id', id).first<IComment>();
 
