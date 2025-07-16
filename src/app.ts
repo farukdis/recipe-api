@@ -1,5 +1,6 @@
 import express, { Express, Request, Response, Router } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { Knex } from 'knex';
 
 import apiRouter from './api';
@@ -21,6 +22,9 @@ const allowedOrigins = [
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Helmet'i etkinleştirerek çeşitli HTTP başlıklarını güvenli varsayılanlarla ayarlar
+app.use(helmet());
+
 // CORS kısıtlamalarını daha güvenli bir şekilde yapılandır
 app.use(cors({
   origin: function (origin, callback) {
@@ -37,8 +41,6 @@ app.use(cors({
   },
   credentials: true // Kimlik doğrulama başlıklarının (örn. JWT) çapraz köken isteklerinde gönderilmesine izin ver
 }));
-
-// app.use(helmet()); // Bu paket projemizde kurulu olmadığı için şimdilik devre dışı bırakıldı.
 
 // Ana API rotalarını bağla
 app.use('/api', apiRouter);
