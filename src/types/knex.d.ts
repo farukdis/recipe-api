@@ -22,8 +22,8 @@ declare module 'knex/types/tables' {
     >;
     comments: Knex.CompositeTableType<
       IComment,
-      Omit<IComment, 'created_at' | 'updated_at'>,
-      Omit<IComment, 'updated_at'>
+      Omit<IComment, 'id' | 'created_at' | 'updated_at'>,
+      Omit<IComment, 'id' | 'created_at' | 'user_id' | 'recipe_id'>
     >;
     favorites: Knex.CompositeTableType<
       IFavorite,

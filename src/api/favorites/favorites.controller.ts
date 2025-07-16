@@ -1,29 +1,15 @@
 import { Request, Response } from 'express';
-import { Knex } from 'knex';
 import knex from '../../config/db';
-import { AuthenticatedRequest, IRecipe } from '../../types';
-
-// Favori verisi için bir arayüz tanımlıyoruz
-interface IFavorite {
-  user_id: number;
-  recipe_id: string;
-  created_at: Date;
-}
-
-// Favori ve tarif verilerinin birleşimi için bir arayüz
-interface IFavoriteRecipe extends IRecipe {
-  author_username: string;
-}
+import { AuthenticatedRequest, IRecipe, IFavorite, IFavoriteRecipe } from '../../types';
 
 export const addFavorite = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { recipe_id } = req.params;
     const userId = req.user.id;
 
-    // Hatalı kısım düzeltildi. where metodu objeyi kabul eder, tip belirtme ilk olarak `first` metodunda yapılmalı.
-    const favoriteExists = await (knex as Knex)('favorites')
+    const favoriteExists = await knex('favorites')
       .where({ user_id: userId, recipe_id })
-      .first<IFavorite>(); // <-- Hata burada düzeltildi.
+      .first<IFavorite>();
 
     if (favoriteExists) {
       return res.status(409).json({ message: "Bu tarif zaten favorilerinizde." });
@@ -35,7 +21,7 @@ export const addFavorite = async (req: AuthenticatedRequest, res: Response) => {
       created_at: new Date()
     };
 
-    await (knex as Knex)('favorites').insert(newFavorite);
+    await knex('favorites').insert(newFavorite);
     res.status(201).json({ message: "Tarif favorilere başarıyla eklendi." });
   } catch (error) {
     console.error("Favori ekleme hatası:", error);
@@ -48,7 +34,7 @@ export const removeFavorite = async (req: AuthenticatedRequest, res: Response) =
     const { recipe_id } = req.params;
     const userId = req.user.id;
 
-    const favoriteCount = await (knex as Knex)('favorites')
+    const favoriteCount = await knex('favorites')
       .where({ user_id: userId, recipe_id })
       .del();
 
@@ -67,7 +53,7 @@ export const getFavorites = async (req: AuthenticatedRequest, res: Response) => 
   try {
     const userId = req.user.id;
 
-    const favorites = await (knex as Knex)('favorites')
+    const favorites = await knex('favorites')
       .leftJoin('recipes', 'favorites.recipe_id', 'recipes.id')
       .leftJoin('users', 'recipes.user_id', 'users.id')
       .where('favorites.user_id', userId)
