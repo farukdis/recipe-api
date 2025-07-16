@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import knex from '../../config/db';
 import { AuthenticatedRequest, IComment } from '../../types';
+import { filterXSS } from 'xss'; // XSS kütüphanesini import ettik
 
 export const getCommentsByRecipeId = async (req: Request, res: Response) => {
   try {
@@ -30,9 +31,12 @@ export const createComment = async (req: AuthenticatedRequest, res: Response) =>
     const { recipe_id } = req.params;
     const userId = req.user.id;
 
+    // Yeni: XSS temizliği uygulandı
+    const sanitizedCommentText = filterXSS(comment_text || '');
+
     const newComment: IComment = {
       id: uuidv4(),
-      comment_text,
+      comment_text: sanitizedCommentText,
       user_id: userId,
       recipe_id,
       created_at: new Date(),
@@ -54,6 +58,9 @@ export const updateComment = async (req: AuthenticatedRequest, res: Response) =>
     const { comment_text } = req.body;
     const userId = req.user.id;
 
+    // Yeni: XSS temizliği uygulandı
+    const sanitizedCommentText = filterXSS(comment_text || '');
+
     const comment = await knex('comments').where('id', id).first<IComment>();
 
     if (!comment) {
@@ -65,7 +72,7 @@ export const updateComment = async (req: AuthenticatedRequest, res: Response) =>
     }
 
     await knex('comments').where('id', id).update({
-      comment_text,
+      comment_text: sanitizedCommentText,
       updated_at: new Date(),
     });
 

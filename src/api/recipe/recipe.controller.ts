@@ -10,6 +10,7 @@ import {
 } from '../../types';
 import { createRecipeSchema, updateRecipeSchema } from './recipe.routes';
 import { z } from 'zod';
+import { filterXSS } from 'xss';
 
 // Zod şemalarından tipleri türetiyoruz
 type IRecipeBody = z.infer<typeof createRecipeSchema>;
@@ -57,13 +58,14 @@ export const createRecipe = async (req: AuthenticatedRequest, res: Response) => 
     const userId = req.user.id;
     const newRecipeId = uuidv4();
 
-    // İşlemleri bir transaction içine alıyoruz
+    const sanitizedTitle = filterXSS(title || '');
+    const sanitizedDescription = filterXSS(description || '');
+
     await knex.transaction(async (trx) => {
-      // 1. Tarifi oluştur
       const newRecipe: IRecipe = {
         id: newRecipeId,
-        title,
-        description,
+        title: sanitizedTitle,
+        description: sanitizedDescription,
         image_url,
         prep_time,
         cook_time,
@@ -74,26 +76,28 @@ export const createRecipe = async (req: AuthenticatedRequest, res: Response) => 
       };
       await trx<IRecipe>('recipes').insert(newRecipe);
 
-      // 2. Malzemeleri ekle
-      const ingredientsToInsert = ingredients.map((item) => ({
-        id: uuidv4(),
-        name: item.name,
-        quantity: item.quantity,
-        recipe_id: newRecipeId,
-      }));
-      if (ingredientsToInsert.length > 0) {
-        await trx<IIngredient>('ingredients').insert(ingredientsToInsert);
+      if (ingredients) {
+        const ingredientsToInsert = ingredients.map((item) => ({
+          id: uuidv4(),
+          name: filterXSS(item.name || ''),
+          quantity: filterXSS(item.quantity || ''),
+          recipe_id: newRecipeId,
+        }));
+        if (ingredientsToInsert.length > 0) {
+          await trx<IIngredient>('ingredients').insert(ingredientsToInsert);
+        }
       }
 
-      // 3. Talimatları ekle
-      const instructionsToInsert = instructions.map((item) => ({
-        id: uuidv4(),
-        step_number: item.step_number,
-        step_text: item.step_text,
-        recipe_id: newRecipeId,
-      }));
-      if (instructionsToInsert.length > 0) {
-        await trx<IInstruction>('instructions').insert(instructionsToInsert);
+      if (instructions) {
+        const instructionsToInsert = instructions.map((item) => ({
+          id: uuidv4(),
+          step_number: item.step_number,
+          step_text: filterXSS(item.step_text || ''),
+          recipe_id: newRecipeId,
+        }));
+        if (instructionsToInsert.length > 0) {
+          await trx<IInstruction>('instructions').insert(instructionsToInsert);
+        }
       }
     });
 
@@ -122,8 +126,8 @@ export const updateRecipe = async (req: AuthenticatedRequest, res: Response) => 
       }
   
       const updatedFields: Partial<IRecipe> = {
-        title,
-        description,
+        title: title ? filterXSS(title || '') : undefined,
+        description: description ? filterXSS(description || '') : undefined,
         image_url,
         prep_time,
         cook_time,
@@ -131,28 +135,25 @@ export const updateRecipe = async (req: AuthenticatedRequest, res: Response) => 
         updated_at: new Date(),
       };
   
-      // Sadece gönderilen alanları güncelliyoruz
       await trx('recipes').where('id', id).update(updatedFields);
 
-      // Eğer istekte 'ingredients' varsa, eski malzemeleri silip yenilerini ekliyoruz
       if (ingredients) {
         await trx('ingredients').where('recipe_id', id).del();
         const ingredientsToInsert = ingredients.map((item) => ({
           id: uuidv4(),
-          name: item.name,
-          quantity: item.quantity,
+          name: filterXSS(item.name || ''),
+          quantity: filterXSS(item.quantity || ''),
           recipe_id: id,
         }));
         await trx<IIngredient>('ingredients').insert(ingredientsToInsert);
       }
 
-      // Eğer istekte 'instructions' varsa, eski talimatları silip yenilerini ekliyoruz
       if (instructions) {
         await trx('instructions').where('recipe_id', id).del();
         const instructionsToInsert = instructions.map((item) => ({
           id: uuidv4(),
           step_number: item.step_number,
-          step_text: item.step_text,
+          step_text: filterXSS(item.step_text || ''),
           recipe_id: id,
         }));
         await trx<IInstruction>('instructions').insert(instructionsToInsert);
