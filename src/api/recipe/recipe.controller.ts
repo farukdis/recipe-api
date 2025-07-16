@@ -8,6 +8,12 @@ import {
   IIngredient,
   IInstruction,
 } from '../../types';
+import { createRecipeSchema, updateRecipeSchema } from './recipe.routes';
+import { z } from 'zod';
+
+// Zod şemalarından tipleri türetiyoruz
+type IRecipeBody = z.infer<typeof createRecipeSchema>;
+type IPartialRecipeBody = z.infer<typeof updateRecipeSchema>;
 
 export const getAllRecipes = async (req: Request, res: Response) => {
   try {
@@ -47,29 +53,51 @@ export const getRecipeById = async (req: Request, res: Response) => {
 
 export const createRecipe = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { title, description, image_url, prep_time, cook_time, servings } = req.body;
+    const { title, description, image_url, prep_time, cook_time, servings, ingredients, instructions } = req.body as IRecipeBody;
     const userId = req.user.id;
+    const newRecipeId = uuidv4();
 
-    if (!title || !userId) {
-      return res.status(400).json({ message: 'Başlık ve kullanıcı bilgisi gereklidir.' });
-    }
+    // İşlemleri bir transaction içine alıyoruz
+    await knex.transaction(async (trx) => {
+      // 1. Tarifi oluştur
+      const newRecipe: IRecipe = {
+        id: newRecipeId,
+        title,
+        description,
+        image_url,
+        prep_time,
+        cook_time,
+        servings,
+        user_id: userId,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      await trx<IRecipe>('recipes').insert(newRecipe);
 
-    const newRecipe: IRecipe = {
-      id: uuidv4(),
-      title,
-      description,
-      image_url,
-      prep_time,
-      cook_time,
-      servings,
-      user_id: userId,
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
+      // 2. Malzemeleri ekle
+      const ingredientsToInsert = ingredients.map((item) => ({
+        id: uuidv4(),
+        name: item.name,
+        quantity: item.quantity,
+        recipe_id: newRecipeId,
+      }));
+      if (ingredientsToInsert.length > 0) {
+        await trx<IIngredient>('ingredients').insert(ingredientsToInsert);
+      }
 
-    await knex<IRecipe>('recipes').insert(newRecipe);
+      // 3. Talimatları ekle
+      const instructionsToInsert = instructions.map((item) => ({
+        id: uuidv4(),
+        step_number: item.step_number,
+        step_text: item.step_text,
+        recipe_id: newRecipeId,
+      }));
+      if (instructionsToInsert.length > 0) {
+        await trx<IInstruction>('instructions').insert(instructionsToInsert);
+      }
+    });
 
-    res.status(201).json({ message: 'Tarif başarıyla oluşturuldu.', recipeId: newRecipe.id });
+    res.status(201).json({ message: 'Tarif başarıyla oluşturuldu.', recipeId: newRecipeId });
   } catch (error) {
     console.error('Tarif oluşturma hatası:', error);
     res.status(500).json({ message: 'Tarif oluşturma sırasında bir hata oluştu.' });
@@ -79,30 +107,57 @@ export const createRecipe = async (req: AuthenticatedRequest, res: Response) => 
 export const updateRecipe = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, description, image_url, prep_time, cook_time, servings } = req.body;
+    const { title, description, image_url, prep_time, cook_time, servings, ingredients, instructions } = req.body as IPartialRecipeBody;
     const userId = req.user.id;
 
-    const recipe = await knex('recipes').where('id', id).first<IRecipe>();
+    await knex.transaction(async (trx) => {
+      const recipe = await trx('recipes').where('id', id).first<IRecipe>();
 
-    if (!recipe) {
-      return res.status(404).json({ message: 'Tarif bulunamadı.' });
-    }
+      if (!recipe) {
+        return res.status(404).json({ message: 'Tarif bulunamadı.' });
+      }
+  
+      if (recipe.user_id !== userId) {
+        return res.status(403).json({ message: 'Bu tarifi güncelleme yetkiniz yok.' });
+      }
+  
+      const updatedFields: Partial<IRecipe> = {
+        title,
+        description,
+        image_url,
+        prep_time,
+        cook_time,
+        servings,
+        updated_at: new Date(),
+      };
+  
+      // Sadece gönderilen alanları güncelliyoruz
+      await trx('recipes').where('id', id).update(updatedFields);
 
-    if (recipe.user_id !== userId) {
-      return res.status(403).json({ message: 'Bu tarifi güncelleme yetkiniz yok.' });
-    }
+      // Eğer istekte 'ingredients' varsa, eski malzemeleri silip yenilerini ekliyoruz
+      if (ingredients) {
+        await trx('ingredients').where('recipe_id', id).del();
+        const ingredientsToInsert = ingredients.map((item) => ({
+          id: uuidv4(),
+          name: item.name,
+          quantity: item.quantity,
+          recipe_id: id,
+        }));
+        await trx<IIngredient>('ingredients').insert(ingredientsToInsert);
+      }
 
-    const updatedFields: Partial<IRecipe> = {
-      title,
-      description,
-      image_url,
-      prep_time,
-      cook_time,
-      servings,
-      updated_at: new Date(),
-    };
-
-    await knex('recipes').where('id', id).update(updatedFields);
+      // Eğer istekte 'instructions' varsa, eski talimatları silip yenilerini ekliyoruz
+      if (instructions) {
+        await trx('instructions').where('recipe_id', id).del();
+        const instructionsToInsert = instructions.map((item) => ({
+          id: uuidv4(),
+          step_number: item.step_number,
+          step_text: item.step_text,
+          recipe_id: id,
+        }));
+        await trx<IInstruction>('instructions').insert(instructionsToInsert);
+      }
+    });
 
     res.status(200).json({ message: 'Tarif başarıyla güncellendi.' });
   } catch (error) {

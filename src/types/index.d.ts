@@ -33,9 +33,9 @@ export interface IRecipe {
   id: string;
   title: string;
   description: string;
-  image_url: string;
-  prep_time: string;
-  cook_time: string;
+  image_url?: string; // string'den string?'ye değiştirildi
+  prep_time: number;
+  cook_time: number;
   servings: number;
   user_id: number;
   created_at: Date;
@@ -82,9 +82,9 @@ export interface IRecipeDetails {
   recipe_id: string;
   title: string;
   description: string;
-  image_url: string;
-  prep_time: string;
-  cook_time: string;
+  image_url?: string; // string'den string?'ye değiştirildi
+  prep_time: number;
+  cook_time: number;
   servings: number;
   created_at: Date;
   updated_at: Date;
