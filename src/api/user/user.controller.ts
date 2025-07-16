@@ -4,14 +4,19 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AuthenticatedRequest, IUser } from '../../types';
+import { filterXSS } from 'xss'; // XSS kütüphanesini import ettik
 
 export const register = async (req: Request, res: Response) => {
   try {
     const { username, email, password } = req.body;
+
+    // Yeni: username ve email alanlarına XSS temizliği uygulandı
+    const sanitizedUsername = filterXSS(username || '');
+    const sanitizedEmail = filterXSS(email || '');
     
     const existingUser = await knex('users')
-      .where({ email: email })
-      .orWhere({ username: username })
+      .where({ email: sanitizedEmail })
+      .orWhere({ username: sanitizedUsername })
       .first<IUser>();
     
     if (existingUser) {
@@ -22,8 +27,8 @@ export const register = async (req: Request, res: Response) => {
     
     const newUser = {
       id: uuidv4(),
-      username: username,
-      email: email,
+      username: sanitizedUsername,
+      email: sanitizedEmail,
       password_hash: hashedPassword,
     };
     
@@ -48,6 +53,12 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    
+    // Login işleminde kullanıcı adını veya e-postayı sanitize etmeye gerek yoktur
+    // Çünkü bu veriler sadece veritabanındaki kayıtlarla eşleştirilir ve doğrudan çıktıya verilmez.
+    // Ancak, giriş yaparken potansiyel hataları veya beklenmedik durumları önlemek için
+    // email alanını temizlemek yine de kötü bir pratik değildir, ancak zorunlu değildir.
+    // Şimdilik sadece register kısmına odaklanalım.
     
     const user = await knex('users').where({ email: email }).first<IUser>();
     
