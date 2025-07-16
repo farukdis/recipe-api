@@ -57,7 +57,7 @@ export const getFavorites = async (req: AuthenticatedRequest, res: Response) => 
       .leftJoin('recipes', 'favorites.recipe_id', 'recipes.id')
       .leftJoin('users', 'recipes.user_id', 'users.id')
       .where('favorites.user_id', userId)
-      .select('recipes.*', 'users.username as author_username')
+      .select('recipes.*', 'users.username as author_username', 'favorites.created_at as favorite_date')
       .orderBy('favorites.created_at', 'desc')
       .distinct('recipes.id') as IFavoriteRecipe[];
 

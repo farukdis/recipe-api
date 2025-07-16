@@ -18,7 +18,7 @@ declare module 'knex/types/tables' {
     recipes: Knex.CompositeTableType<
       IRecipe,
       Omit<IRecipe, 'id' | 'created_at' | 'updated_at'>,
-      Omit<IRecipe, 'id' | 'created_at'>
+      Partial<Omit<IRecipe, 'id' | 'created_at' | 'user_id'>>
     >;
     comments: Knex.CompositeTableType<
       IComment,
